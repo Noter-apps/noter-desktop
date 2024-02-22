@@ -3,6 +3,6 @@ import { Id } from "../id";
 
 export default async function deleteFile(id: Id) {
     return invoke("delete_file", {
-        id,
+        id: id.id,
     });
 }

@@ -33,7 +33,7 @@ export default function CreateNote() {
 
         const file = await createFile(parentId, name, "Note");
         await getDirectory();
-        await setOpen(file);
+        await setOpen(file.id);
     }
 
     return (

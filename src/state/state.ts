@@ -7,102 +7,81 @@ import readDirectoryCommand from "@/types/commands/getDirectory";
 import getFileCommand from "@/types/commands/getFile";
 
 type Fields = {
-    directory: Directory;
-    selected: File[];
-    open: File | null;
-    isSidebarOpen: boolean;
+  directory: Directory;
+  selected: File[];
+  open: File | null;
+  isSidebarOpen: boolean;
 };
 
 type Actions = {
-    getDirectory: () => Promise<Fields["directory"]>;
-    setSelected: (files: Fields["selected"]) => Promise<Fields["selected"]>;
-    addSelected: (id: Id | File) => Promise<Fields["selected"]>;
-    removeSelected: (id: Id | File) => Promise<Fields["selected"]>;
-    setOpen: (id: Id | File | null) => Promise<Fields["open"]>;
-    toggleSidebar: () => void;
+  getDirectory: () => Promise<Fields["directory"]>;
+  setSelected: (files: Fields["selected"]) => Promise<Fields["selected"]>;
+  addSelected: (id: Id) => Promise<Fields["selected"]>;
+  removeSelected: (id: Id) => Promise<Fields["selected"]>;
+  setOpen: (id: Id | null) => Promise<Fields["open"]>;
+  toggleSidebar: () => void;
 };
 
 const dir = await invoke<Directory>("get_directory", { id: "" });
 
 export const useNoterState = create<Fields & Actions>((set, get) => ({
-    directory: dir,
-    selected: [],
-    open: null,
-    isSidebarOpen: true,
-    getDirectory: async (id?: Id) => {
-        const directory = await readDirectoryCommand(id);
-        set({ directory });
-        return directory;
-    },
-    setSelected: async (files) => {
-        set({ selected: files });
-        return files;
-    },
-    addSelected: async (input) => {
-        const selected = get().selected;
-        let file: File;
+  directory: dir,
+  selected: [],
+  open: null,
+  isSidebarOpen: true,
+  getDirectory: async (id?: Id) => {
+    const directory = await readDirectoryCommand(id);
+    set({ directory });
+    return directory;
+  },
+  setSelected: async (files) => {
+    set({ selected: files });
+    return files;
+  },
+  addSelected: async (input) => {
+    const selected = get().selected;
 
-        if (typeof input.id === "string") {
-            const id = input as Id;
+    if (selected.some((file) => file.id.id === input.id)) {
+      return selected;
+    }
 
-            if (selected.some((file) => file.id.id === id.id)) {
-                return selected;
-            }
+    const file = await getFileCommand(input);
+    const files: Fields["selected"] = [...selected, file];
 
-            file = await getFileCommand(id);
-        } else {
-            file = input as File;
+    set({ selected: files });
+    return files;
+  },
+  removeSelected: async (input) => {
+    const { selected, open } = get();
+    const files = selected.filter((file) => file.id.id !== input.id);
 
-            if (
-                selected.some(
-                    (selectedFile) => file.id.id === selectedFile.id.id,
-                )
-            ) {
-                return selected;
-            }
-        }
+    if (files.length === 0 || input.id === open?.id.id) {
+      set({ open: null });
+    }
 
-        const files: Fields["selected"] = [...selected, file];
-        set({ selected: files });
-        return files;
-    },
-    removeSelected: async (input) => {
-        let id: Id;
-        if (typeof input.id === "string") {
-            id = input as Id;
-        } else {
-            const file = input as File;
-            id = file.id;
-        }
+    set({ selected: files });
+    return files;
+  },
+  setOpen: async (input) => {
+    const addSelected = get().addSelected;
 
-        const selected = get().selected;
-        const files = selected.filter((file) => file.id.id !== id.id);
-        if (files.length === 0) {
-            set({ open: null });
-        }
-        set({ selected: files });
-        return files;
-    },
-    setOpen: async (input) => {
-        if (input === null) {
-            set({ open: null });
-            return null;
-        }
+    if (input === null) {
+      set({ open: null });
+      return null;
+    }
 
-        let file: Fields["open"] = null;
+    const selected = await addSelected(input);
 
-        if (typeof input.id === "string") {
-            const id = input as Id;
-            file = await getFileCommand(id);
-        } else {
-            file = input as File;
-        }
+    const file = selected.find((file) => file.id.id === input.id);
 
-        get().addSelected(file);
-        set({ open: file });
-        return file;
-    },
-    toggleSidebar: () => {
-        set({ isSidebarOpen: !get().isSidebarOpen });
-    },
+    if (!file) {
+      return null;
+    }
+
+    set({ open: file });
+    return file;
+  },
+  toggleSidebar: () => {
+    set({ isSidebarOpen: !get().isSidebarOpen });
+  },
 }));
