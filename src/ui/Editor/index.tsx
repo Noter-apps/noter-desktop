@@ -15,7 +15,7 @@ import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { EditorState } from "lexical";
 import { useEffect, useRef, useState } from "react";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import putFile from "@/types/commands/putFile";
+import PluginList from "./plugins";
 
 function AutoSavePlugin({
   onSave,
@@ -109,6 +109,8 @@ export default function Editor({
         }
         ErrorBoundary={LexicalErrorBoundary}
       ></RichTextPlugin>
+
+      <PluginList />
       <AutoSavePlugin onSave={onSave} />
     </LexicalComposer>
   );

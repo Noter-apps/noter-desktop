@@ -87,20 +87,43 @@ function FileView({ rename }: { rename: (name: string) => void }) {
     });
   }
 
+  function onRename() {
+    if (!open) {
+      return;
+    }
+
+    if (!name || name === open.name) {
+      setName(open.name);
+      return;
+    }
+
+    if (name.length > 255) {
+      setName(open.name);
+      return;
+    }
+
+    if (name.includes("/")) {
+      setName(open.name);
+      return;
+    }
+
+    rename(name);
+  }
+
   return (
     <div className="w-full h-full max-h-full">
       {selected.map((selectedFile) =>
         selectedFile.id.id === open.id.id ? (
           <div
-            className="w-full h-full overflow-y-scroll"
+            className="w-full h-full overflow-y-scroll overflow-x-hidden"
             key={selectedFile.id.id}
           >
             <Input
-              className="max-w-full text-2xl font-bold p-2 border-none rounded-none"
+              className="max-w-full tracking-tight lg:text-4xl text-3xl font-bold p-2 border-none rounded-none lg:max-w-2xl mx-auto"
               contentEditable
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onBlur={() => rename(name)}
+              onBlur={onRename}
             />
             <Separator className="mx-2" />
             <Editor
@@ -116,26 +139,16 @@ function FileView({ rename }: { rename: (name: string) => void }) {
 }
 
 export default function Workspace() {
-  const [getDirectory, open, setOpen, removeSelected] = useNoterState((state) => [
-    state.getDirectory,
-    state.open,
-    state.setOpen,
-    state.removeSelected,
-  ]);
+  const [getDirectory, open, setOpen, removeSelected] = useNoterState(
+    (state) => [
+      state.getDirectory,
+      state.open,
+      state.setOpen,
+      state.removeSelected,
+    ],
+  );
 
   async function rename(name: string) {
-    if (!open || !name || name === open.name) {
-      return;
-    }
-
-    if (name.length > 255) {
-      return;
-    }
-
-    if (name.includes("/")) {
-      return;
-    }
-
     await removeSelected(open.id);
     const renamedFile = await putFile(open.id, { name });
     await getDirectory();
