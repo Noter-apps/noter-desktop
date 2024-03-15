@@ -38,7 +38,8 @@ fn main() {
             put_file,
             get_directory,
             welcome_startup,
-            delete_entry
+            delete_entry,
+            refresh
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

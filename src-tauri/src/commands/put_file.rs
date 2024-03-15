@@ -24,21 +24,23 @@ pub fn put_file(
         Err(_) => return Err("Could not lock state".to_string()),
     };
 
-    let id = Id::new(id, &state.notes_dir);
+    let notes_dir = state.get_notes_dir();
+    let id = Id::new(id, notes_dir);
 
-    match id.exists() {
+    match id.exists(notes_dir) {
         true => {
-            let mut file = File::get_from_file(id.clone()).map_err(|e| e.to_string())?;
+            let mut file = File::get_from_file(id.clone(), notes_dir).map_err(|e| e.to_string())?;
             let file_type = file.get_type();
 
             if let Some(name) = name {
-                file.rename(name).map_err(|e| e.to_string())?;
+                file.rename(name, notes_dir).map_err(|e| e.to_string())?;
             }
 
             if let Some(content) = content {
                 let file_content = FileContent::custom_deserialize(content.as_bytes(), file_type)
                     .map_err(|e| e.to_string())?;
-                file.put(file_content).map_err(|e| e.to_string())?;
+                file.put(file_content, notes_dir)
+                    .map_err(|e| e.to_string())?;
             }
 
             Ok(file)

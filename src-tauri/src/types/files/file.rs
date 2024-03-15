@@ -1,10 +1,10 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::types::Id;
+use crate::types::{FileType, Id};
 
 use super::{Image, Note, Table, TodoList};
 
@@ -13,25 +13,6 @@ pub const IMAGE_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 pub trait FileSerializable {
     fn custom_serialize(&self) -> Result<Vec<u8>>;
     fn custom_deserialize(file_content: &[u8]) -> Result<Box<Self>>;
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub enum FileType {
-    Note,
-    TodoList,
-    Image,
-    Table,
-}
-
-impl ToString for FileType {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Note => "md".to_string(),
-            Self::TodoList => "todo.csv".to_string(),
-            Self::Image => "png".to_string(),
-            Self::Table => "csv".to_string(),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -83,7 +64,7 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(id: Id, name: String, content: FileContent) -> Result<Self> {
+    pub fn new(id: Id, notes_dir: &PathBuf, name: String, content: FileContent) -> Result<Self> {
         let now = Utc::now();
 
         let new_file = Self {
@@ -94,12 +75,12 @@ impl File {
             content,
         };
 
-        new_file.save_to_file()?;
+        new_file.save_to_file(notes_dir)?;
         Ok(new_file)
     }
 
-    pub fn get_from_file(id: Id) -> Result<Self> {
-        let path = id.path_from_id();
+    pub fn get_from_file(id: Id, notes_dir: &PathBuf) -> Result<Self> {
+        let path = id.path_from_id(&notes_dir);
 
         if !path.exists() {
             return Err(anyhow::anyhow!("File does not exist"));
@@ -107,10 +88,6 @@ impl File {
 
         if !path.is_file() {
             return Err(anyhow::anyhow!("Not a File"));
-        }
-
-        if !path.starts_with(id.get_notes_dir()) {
-            return Err(anyhow::anyhow!("File is not in notes directory"));
         }
 
         let metadata = fs::metadata(&path)?;
@@ -148,37 +125,34 @@ impl File {
         })
     }
 
-    pub fn delete(id: Id) -> Result<()> {
-        fs::remove_file(id.path_from_id())?;
+    pub fn delete(id: Id, notes_dir: &PathBuf) -> Result<()> {
+        fs::remove_file(id.path_from_id(notes_dir))?;
 
         Ok(())
     }
 
-    pub fn save_to_file(&self) -> Result<()> {
-        let path = self.id.path_from_id();
+    pub fn save_to_file(&self, notes_dir: &PathBuf) -> Result<()> {
+        let path = self.id.path_from_id(notes_dir);
 
         fs::write(&path, self.content.custom_serialize()?)?;
 
         Ok(())
     }
 
-    pub fn put(&mut self, content: FileContent) -> Result<()> {
+    pub fn put(&mut self, content: FileContent, notes_dir: &PathBuf) -> Result<()> {
         self.content = content;
         self.modified_at = Utc::now();
 
-
-        self.save_to_file()
+        self.save_to_file(notes_dir)
     }
 
-    pub fn rename(&mut self, mut new_name: String) -> Result<()> {
-        let old_path = self.id.path_from_id();
-
-        let notes_dir = self.id.get_notes_dir();
+    pub fn rename(&mut self, mut new_name: String, notes_dir: &PathBuf) -> Result<()> {
+        let old_path = self.id.path_from_id(notes_dir);
         new_name.push('.');
         new_name.push_str(&self.get_type().to_string());
         let new_id = Id::new(new_name.clone(), notes_dir);
 
-        let new_path = new_id.path_from_id();
+        let new_path = new_id.path_from_id(notes_dir);
 
         fs::rename(old_path, new_path)?;
 

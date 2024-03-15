@@ -12,6 +12,7 @@ pub fn get_file(state: State<HeldState>, id: String) -> Result<File, String> {
         Err(_) => return Err("Could not lock state".to_string()),
     };
 
-    let id = Id::new(id, &state.notes_dir);
-    File::get_from_file(id).map_err(|e| e.to_string())
+    let id = Id::new(id, state.get_notes_dir());
+    let notes_dir = state.get_notes_dir();
+    File::get_from_file(id, notes_dir).map_err(|e| e.to_string())
 }

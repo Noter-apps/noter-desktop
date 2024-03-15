@@ -23,8 +23,6 @@ pub fn welcome_startup(notes_dir: PathBuf, app: AppHandle) -> Result<(), String>
     };
 
     let state = NoterState::new(notes_dir);
-
     startup(config, app, state);
-
     welcome_window.close().map_err(|e| e.to_string())
 }

@@ -10,8 +10,8 @@ pub fn delete_file(state: State<HeldState>, id: String) -> Result<(), String> {
         Ok(state) => state,
         Err(_) => return Err("Could not lock state".to_string()),
     };
-    let notes_dir = state.notes_dir.clone();
+    let notes_dir = state.get_notes_dir();
     let id = Id::new(id, &notes_dir);
 
-    File::delete(id).map_err(|e| e.to_string())
+    File::delete(id, notes_dir).map_err(|e| e.to_string())
 }
