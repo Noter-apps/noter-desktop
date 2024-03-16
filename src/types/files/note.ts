@@ -1,3 +1,3 @@
 export type Note = {
-    body: string;
+  body: string;
 };

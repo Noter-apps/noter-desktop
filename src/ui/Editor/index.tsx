@@ -7,7 +7,6 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { theme } from "./theme";
-import { Note } from "@/types/note";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListNode, ListItemNode } from "@lexical/list";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
@@ -16,6 +15,9 @@ import { EditorState } from "lexical";
 import { useEffect, useRef, useState } from "react";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import PluginList from "./plugins";
+import { InternalLinkNode } from "./nodes/LinkNode";
+import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
+import { Note } from "@/types/files/note";
 
 function AutoSavePlugin({
   onSave,
@@ -50,7 +52,7 @@ export default function Editor({
     onError(error) {
       console.log("Error", error);
     },
-    editorState: (editorState) => {
+    editorState: (_editorState) => {
       $convertFromMarkdownString(note.body);
     },
     theme,
@@ -63,6 +65,8 @@ export default function Editor({
       CodeHighlightNode,
       AutoLinkNode,
       LinkNode,
+      InternalLinkNode,
+      HorizontalRuleNode,
     ],
   } satisfies InitialConfigType;
 

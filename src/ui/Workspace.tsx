@@ -1,14 +1,12 @@
 import { useNoterState } from "@/state/state";
-import { File } from "@/types/file";
-import Editor from "./Editor";
+import { File } from "@/types/files/file";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { File as FileIcon, XCircle } from "lucide-react";
-import { EditorState } from "lexical";
-import { $convertToMarkdownString, TRANSFORMERS } from "@lexical/markdown";
-import putFile from "@/types/commands/putFile";
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
+import getFile from "@/types/commands/getFile";
+import NoteView from "./Note";
+import { FilePreview } from "@/types/filePreview/filePreview";
 
 function TabRow() {
   const [selected, removeSelected, open, setOpen] = useNoterState((state) => [
@@ -18,11 +16,11 @@ function TabRow() {
     state.setOpen,
   ]);
 
-  function handleOpen(file: File) {
+  function handleOpen(file: FilePreview) {
     setOpen(file.id);
   }
 
-  function handleClose(file: File) {
+  function handleClose(file: FilePreview) {
     removeSelected(file.id);
   }
 
@@ -35,9 +33,9 @@ function TabRow() {
       <div className="flex items-center gap-1 p-1">
         {selected.map((file) => (
           <Button
-            variant={open?.id.id === file.id.id ? "secondary" : "ghost"}
+            variant={open?.id === file.id ? "secondary" : "ghost"}
             className="flex gap-1 grow justify-between p-0 overflow-hidden"
-            key={file.id.id}
+            key={file.id}
           >
             <div
               className="h-full flex items-center gap-1 grow p-1"
@@ -61,106 +59,43 @@ function TabRow() {
   );
 }
 
-function FileView({ rename }: { rename: (name: string) => void }) {
-  const [open, selected] = useNoterState((state) => [
-    state.open,
-    state.selected,
-  ]);
+function FileView() {
+  const open = useNoterState((state) => state.open);
 
   if (!open) {
     return null;
   }
 
-  const [name, setName] = useState(open.name);
+  const [file, setFile] = useState<File | null>(null);
 
-  function onSave(editorState: EditorState) {
-    if (!open) {
-      return;
+  useEffect(() => {
+    if (open) {
+      getFile(open.id).then((file) => {
+        setFile(file);
+      });
     }
+  }, [open]);
 
-    const body = editorState.read(() => {
-      return $convertToMarkdownString(TRANSFORMERS);
-    });
-
-    putFile(open.id, {
-      body,
-    });
-  }
-
-  function onRename() {
-    if (!open) {
-      return;
-    }
-
-    if (!name || name === open.name) {
-      setName(open.name);
-      return;
-    }
-
-    if (name.length > 255) {
-      setName(open.name);
-      return;
-    }
-
-    if (name.includes("/")) {
-      setName(open.name);
-      return;
-    }
-
-    rename(name);
+  if (!file) {
+    return null;
   }
 
   return (
     <div className="w-full h-full max-h-full">
-      {selected.map((selectedFile) =>
-        selectedFile.id.id === open.id.id ? (
-          <div
-            className="w-full h-full overflow-y-scroll overflow-x-hidden"
-            key={selectedFile.id.id}
-          >
-            <Input
-              className="max-w-full tracking-tight lg:text-4xl text-3xl font-bold p-2 border-none rounded-none lg:max-w-2xl mx-auto"
-              contentEditable
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={onRename}
-            />
-            <Separator className="mx-2" />
-            <Editor
-              key={selectedFile.id.id}
-              note={selectedFile.content.Note!}
-              onSave={onSave}
-            />
-          </div>
-        ) : null,
-      )}
+      {file.content.Note && <NoteView file={file} />}
     </div>
   );
 }
 
 export default function Workspace() {
-  const [getDirectory, open, setOpen, removeSelected] = useNoterState(
-    (state) => [
-      state.getDirectory,
-      state.open,
-      state.setOpen,
-      state.removeSelected,
-    ],
-  );
-
-  async function rename(name: string) {
-    await removeSelected(open.id);
-    const renamedFile = await putFile(open.id, { name });
-    await getDirectory();
-    await setOpen(renamedFile.id);
-  }
+  const open = useNoterState((state) => state.open);
 
   return (
     <div className="w-full h-full flex flex-col">
       <TabRow />
       <div className="grow overflow-hidden">
         {open ? (
-          <FileView key={open.id.id} rename={rename} />
+          <FileView key={open.id} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
             Select a file to view

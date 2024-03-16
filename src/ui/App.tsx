@@ -32,7 +32,7 @@ function App() {
       <Titlebar />
       <ResizablePanelGroup direction="horizontal" className="grow">
         {isSidebarOpen && (
-          <ResizablePanel minSize={10} defaultSize={20} order={0} id="panel-1">
+          <ResizablePanel minSize={10} defaultSize={25} order={0} id="panel-1">
             <Sidebar />
           </ResizablePanel>
         )}

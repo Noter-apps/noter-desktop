@@ -2,8 +2,8 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { HorizontalRulePlugin } from "@lexical/react/LexicalHorizontalRulePlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin";
-import { TRANSFORMERS } from "@lexical/markdown";
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
+import InternalLinkPlugin from "./InternalLinkPlugin";
+import { MarkdownShortcutsPlugin } from "./Markdown/MarkdownShortcuts";
 
 export default function PluginList() {
   return (
@@ -12,7 +12,8 @@ export default function PluginList() {
       <HorizontalRulePlugin />
       <ListPlugin />
       <TabIndentationPlugin />
-      <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+      <MarkdownShortcutsPlugin />
+      <InternalLinkPlugin />
     </>
   );
 }
