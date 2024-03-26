@@ -1,10 +1,13 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::types::{FileType, Id};
+use crate::types::{FilePreview, FileType, Id};
 
 use super::{Image, Note, Table, TodoList};
 
@@ -26,10 +29,10 @@ pub enum FileContent {
 impl FileContent {
     pub fn default(file_type: FileType) -> Self {
         match file_type {
-            FileType::Note => Self::Note(Box::new(Note::default())),
-            FileType::TodoList => Self::TodoList(Box::new(TodoList::default())),
-            FileType::Image => Self::Image(Box::new(Image::default())),
-            FileType::Table => Self::Table(Box::new(Table::default())),
+            FileType::Note => Self::Note(Box::default()),
+            FileType::TodoList => Self::TodoList(Box::default()),
+            FileType::Image => Self::Image(Box::default()),
+            FileType::Table => Self::Table(Box::default()),
         }
     }
 }
@@ -64,7 +67,7 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(id: Id, notes_dir: &PathBuf, name: String, content: FileContent) -> Result<Self> {
+    pub fn new(id: Id, notes_dir: &Path, name: String, content: FileContent) -> Result<Self> {
         let now = Utc::now();
 
         let new_file = Self {
@@ -79,8 +82,18 @@ impl File {
         Ok(new_file)
     }
 
-    pub fn get_from_file(id: Id, notes_dir: &PathBuf) -> Result<Self> {
-        let path = id.path_from_id(&notes_dir);
+    pub fn get_preview(&self) -> FilePreview {
+        FilePreview {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            file_type: self.get_type(),
+        }
+    }
+
+    pub fn get_from_file(id: Id, notes_dir: &Path) -> Result<Self> {
+        let path = id.path_from_id(notes_dir);
 
         if !path.exists() {
             return Err(anyhow::anyhow!("File does not exist"));
@@ -125,28 +138,28 @@ impl File {
         })
     }
 
-    pub fn delete(id: Id, notes_dir: &PathBuf) -> Result<()> {
+    pub fn delete(id: Id, notes_dir: &Path) -> Result<()> {
         fs::remove_file(id.path_from_id(notes_dir))?;
 
         Ok(())
     }
 
-    pub fn save_to_file(&self, notes_dir: &PathBuf) -> Result<()> {
+    pub fn save_to_file(&self, notes_dir: &Path) -> Result<()> {
         let path = self.id.path_from_id(notes_dir);
 
-        fs::write(&path, self.content.custom_serialize()?)?;
+        fs::write(path, self.content.custom_serialize()?)?;
 
         Ok(())
     }
 
-    pub fn put(&mut self, content: FileContent, notes_dir: &PathBuf) -> Result<()> {
+    pub fn put(&mut self, content: FileContent, notes_dir: &Path) -> Result<()> {
         self.content = content;
         self.modified_at = Utc::now();
 
         self.save_to_file(notes_dir)
     }
 
-    pub fn rename(&mut self, mut new_name: String, notes_dir: &PathBuf) -> Result<()> {
+    pub fn rename(&mut self, mut new_name: String, notes_dir: &Path) -> Result<()> {
         let old_path = self.id.path_from_id(notes_dir);
         new_name.push('.');
         new_name.push_str(&self.get_type().to_string());

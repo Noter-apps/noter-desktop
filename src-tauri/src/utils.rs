@@ -1,7 +1,7 @@
 use crate::{state::*, Config};
 
 use anyhow::Result;
-use tauri::{AppHandle, Manager, Theme, WindowBuilder};
+use tauri::{AppHandle, Manager, WindowBuilder};
 
 pub fn run_welcome(app: AppHandle) {
     let handle = std::thread::spawn(move || {
@@ -54,7 +54,7 @@ pub fn run_startup(app: AppHandle) -> Result<()> {
     let config_file = Config::get_config_file_path(&path_resolver);
     let config = Config::load(&config_file)?;
 
-    let state = NoterState::new(config.get_preffered_notes_folder());
+    let state = NoterState::new(config.get_preffered_notes_folder())?;
 
     startup(config, app, state);
     Ok(())

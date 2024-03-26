@@ -1,43 +1,42 @@
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::FileType;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Id represents unique identificator for a file in notes_dir.
+/// It is basically filepath relative from the notes_dir
+///
+/// Id does not guarantee that a file on this path exists, that needs to be check by the caller
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct Id(String);
 
 impl Id {
-    pub fn new(id: String, notes_dir: &PathBuf) -> Self {
-        let id = id
-            .trim_start_matches(notes_dir.to_str().unwrap_or(""))
-            .to_string();
+    pub fn new(id: impl Into<String>, notes_dir: &Path) -> Self {
+        let id = id.into();
+        let notes_dir = notes_dir.to_string_lossy().to_string();
 
-        // Remove leading slash
-        let id = if id.starts_with('/') {
-            id.trim_start_matches('/').to_string()
+        let notes_dir = if notes_dir.ends_with('/') {
+            notes_dir
         } else {
-            id
+            format!("{}/", notes_dir)
         };
 
-        Self(id)
+        let id = if id.starts_with(&notes_dir) {
+            &id[notes_dir.len()..]
+        } else {
+            &id
+        };
+
+        Self(id.to_owned())
     }
 
-    pub fn id_from_path(path: &PathBuf, notes_dir: &PathBuf) -> Result<Self> {
-        if !path.starts_with(notes_dir) {
-            return Err(anyhow!("Path is not in notes directory"));
-        }
-
-        let id = path.strip_prefix(notes_dir)?.to_string_lossy().to_string();
-        Ok(Self::new(id, notes_dir))
+    pub fn id_from_path(path: &Path, notes_dir: &Path) -> Self {
+        let id = path.to_string_lossy().to_string();
+        Self::new(id, notes_dir)
     }
 
-    pub fn create_child(&self, name: &str, file_type: FileType, notes_dir: &PathBuf) -> Self {
-        let mut child_id = self.0.clone();
-        child_id.push('/');
-        child_id.push_str(name);
-        child_id.push('.');
-        child_id.push_str(&file_type.to_string());
+    pub fn create_child(&self, name: &str, file_type: FileType, notes_dir: &Path) -> Self {
+        let child_id = format!("{}/{}.{}", self.0, name, file_type.to_string());
         Id::new(child_id, notes_dir)
     }
 
@@ -53,42 +52,18 @@ impl Id {
         }
     }
 
-    pub fn path_from_id(&self, notes_dir: &PathBuf) -> PathBuf {
+    pub fn path_from_id(&self, notes_dir: &Path) -> PathBuf {
         notes_dir.join(&self.0)
     }
 
-    pub fn get_parent_directory(&self, notes_dir: &PathBuf) -> PathBuf {
+    pub fn get_parent_directory(&self, notes_dir: &Path) -> PathBuf {
         let mut path = self.path_from_id(notes_dir);
         path.pop();
         path
     }
 
-    pub fn exists(&self, notes_dir: &PathBuf) -> bool {
+    pub fn exists(&self, notes_dir: &Path) -> bool {
         self.path_from_id(notes_dir).exists()
-    }
-}
-
-impl PartialEq<&str> for Id {
-    fn eq(&self, other: &&str) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialEq<str> for Id {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialEq<String> for Id {
-    fn eq(&self, other: &String) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialEq<Id> for Id {
-    fn eq(&self, other: &Id) -> bool {
-        self.0 == other.0
     }
 }
 
@@ -129,14 +104,12 @@ mod tests {
         let notes_dir = PathBuf::from("/home/user/notes");
         let id = Id::new("pepa/2021-01-01-123456.md".to_string(), &notes_dir);
         let id2 = Id::new("pepa/2021-01-01-123456.md".to_string(), &notes_dir);
-        assert_eq!(id, "pepa/2021-01-01-123456.md");
-        assert_eq!(id, "pepa/2021-01-01-123456.md".to_string());
+        assert_eq!(id, id2);
         assert_eq!(
             id,
             Id::new("pepa/2021-01-01-123456.md".to_string(), &notes_dir)
         );
-        assert_eq!(id, id2);
-
+        assert_eq!(id.to_string(), id2.to_string());
         assert!(id == id2);
     }
 
@@ -156,14 +129,6 @@ mod tests {
             "/home/user/notes/pepa/2021-01-01-123456.md".to_string(),
             &notes_dir,
         );
-        assert_eq!(id.0, "pepa/2021-01-01-123456.md");
-    }
-
-    #[test]
-    fn test_id_from_path() {
-        let notes_dir = PathBuf::from("/home/user/notes");
-        let path = PathBuf::from("/home/user/notes/pepa/2021-01-01-123456.md");
-        let id = Id::id_from_path(&path, &notes_dir).unwrap();
         assert_eq!(id.0, "pepa/2021-01-01-123456.md");
     }
 

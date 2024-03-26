@@ -29,7 +29,7 @@ pub fn put_file(
 
     match id.exists(notes_dir) {
         true => {
-            let mut file = File::get_from_file(id.clone(), notes_dir).map_err(|e| e.to_string())?;
+            let mut file = File::get_from_file(id, notes_dir).map_err(|e| e.to_string())?;
             let file_type = file.get_type();
 
             if let Some(name) = name {

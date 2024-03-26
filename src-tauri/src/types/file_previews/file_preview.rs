@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::{fs, path::PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ pub struct FilePreview {
     pub name: String,
     pub file_type: FileType,
     pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
 }
 
 impl FilePreview {
@@ -47,17 +47,16 @@ impl FilePreview {
             name,
             file_type,
             created_at,
-            updated_at,
+            modified_at: updated_at,
         }
     }
 
-    pub fn from_fs(path: &PathBuf, notes_dir: &PathBuf) -> Result<Self> {
-        let id = Id::id_from_path(path, notes_dir)?;
+    pub fn from_fs(path: &Path, notes_dir: &Path) -> Result<Self> {
+        let id = Id::id_from_path(path, notes_dir);
         let name = path.file_name().unwrap().to_str().unwrap().to_string();
         let file_type = match id.get_type() {
             Some(file_type) => file_type,
             None => return Err(anyhow::anyhow!("Could not get file type")),
-        
         };
         let created_at = fs::metadata(path)?.created()?;
         let updated_at = fs::metadata(path)?.modified()?;

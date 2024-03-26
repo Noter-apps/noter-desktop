@@ -2,7 +2,7 @@ use crate::types::{FilePreview, Id};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 
 use super::File;
 
@@ -20,7 +20,7 @@ impl Entry {
         }
     }
 
-    pub fn delete_entry(entry_id: Id, notes_dir: &PathBuf) -> Result<()> {
+    pub fn delete_entry(entry_id: Id, notes_dir: &Path) -> Result<()> {
         let entry_path = entry_id.path_from_id(notes_dir);
         let entry_path = entry_path.as_path();
 
@@ -66,25 +66,24 @@ impl Directory {
         }
     }
 
-    pub fn delete_entry(&mut self, entry_id: Id, notes_dir: &PathBuf) -> Result<()> {
-        Entry::delete_entry(entry_id.clone(), notes_dir)?;
-        self.entries.retain(|entry| entry.get_id() != &entry_id);
-
-        Ok(())
+    pub fn read_notes_dir<F: FnMut(&File)>(notes_dir: &Path, mut f: F) -> Result<Self> {
+        Self::read_dir(notes_dir, notes_dir, &mut f)
     }
 
-    pub fn get_from_file(id: Id, notes_dir: &PathBuf) -> Result<Self> {
+    pub fn read_dir<F: FnMut(&File)>(
+        dir: &Path,
+        notes_dir: &Path,
+        f: &mut F,
+    ) -> Result<Self> {
         let mut entries = Vec::new();
-        let path = id.path_from_id(notes_dir);
-        let metadata = fs::metadata(&path)?;
+        let metadata = fs::metadata(notes_dir)?;
 
-        for dir_entry in fs::read_dir(&path)? {
+        for dir_entry in fs::read_dir(dir)? {
             let dir_entry = dir_entry?;
             let dir_entry_path = dir_entry.path();
-            let dir_entry_id = Id::id_from_path(&dir_entry_path, &notes_dir)?;
 
             if dir_entry_path.is_dir() {
-                let dir = match Directory::get_from_file(dir_entry_id, notes_dir) {
+                let dir = match Self::read_dir(&dir_entry_path, notes_dir, f) {
                     Ok(dir) => dir,
                     Err(e) => {
                         println!(
@@ -96,34 +95,37 @@ impl Directory {
                 };
                 entries.push(Entry::Directory(dir));
             } else if dir_entry_path.is_file() {
-                // const todo
-                let file = match File::get_from_file(dir_entry_id.clone(), notes_dir) {
-                    Ok(file) => file,
+                let file_id = Id::id_from_path(&dir_entry_path, notes_dir);
+                match File::get_from_file(file_id, notes_dir) {
+                    Ok(file) => {
+                        f(&file);
+                        entries.push(Entry::File(file.get_preview()));
+                    }
                     Err(e) => {
                         println!("Could not read file from fs; {:?}; {:?}", e, dir_entry_path);
                         continue;
                     }
-                };
-                let file_preview = FilePreview::new(
-                    dir_entry_id,
-                    file.name.clone(),
-                    file.get_type(),
-                    file.created_at,
-                    file.modified_at,
-                );
-                entries.push(Entry::File(file_preview));
+                }
             }
         }
 
         let created_at = metadata.created()?;
         let modified_at = metadata.modified()?;
+        let id = Id::id_from_path(dir, notes_dir);
 
-        Ok(Self::new(
+        Ok(Directory::new(
             id,
-            path.file_name().unwrap().to_str().unwrap().to_string(),
+            dir.file_name().unwrap().to_str().unwrap().to_string(),
             entries,
             created_at.into(),
             modified_at.into(),
         ))
+    }
+
+    pub fn delete_entry(&mut self, entry_id: Id, notes_dir: &Path) -> Result<()> {
+        Entry::delete_entry(entry_id.clone(), notes_dir)?;
+        self.entries.retain(|entry| entry.get_id() != &entry_id);
+
+        Ok(())
     }
 }

@@ -13,6 +13,6 @@ pub fn delete_entry(state: State<HeldState>, entry_id: String) -> Result<(), Str
     };
 
     let notes_dir = state.get_notes_dir();
-    let entry_id = Id::new(entry_id, &notes_dir);
+    let entry_id = Id::new(entry_id, notes_dir);
     Entry::delete_entry(entry_id, notes_dir).map_err(|e| e.to_string())
 }

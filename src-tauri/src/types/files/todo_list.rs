@@ -39,16 +39,11 @@ pub struct Task {
     repeat: Option<Repeat>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct TodoList {
     tasks: Vec<Task>,
 }
 
-impl Default for TodoList {
-    fn default() -> Self {
-        Self { tasks: Vec::new() }
-    }
-}
 
 impl FileSerializable for TodoList {
     fn custom_deserialize(file_content: &[u8]) -> Result<Box<Self>> {

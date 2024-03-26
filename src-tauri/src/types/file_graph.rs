@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use super::{id, Id};
+use super::Id;
 
 pub struct FileGraph {
-    nodes: HashMap<Id, bool>
+    pub nodes: HashMap<Id, (bool, Vec<Id>)>,
 }

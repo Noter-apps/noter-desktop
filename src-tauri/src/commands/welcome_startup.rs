@@ -17,12 +17,12 @@ pub fn welcome_startup(notes_dir: PathBuf, app: AppHandle) -> Result<(), String>
         Err(e) => {
             return Err(format!(
                 "error in welcome_startup command\nconfig file could not be stored: {}",
-                e.to_string()
+                e
             ))
         }
     };
 
-    let state = NoterState::new(notes_dir);
+    let state = NoterState::new(notes_dir).map_err(|e| e.to_string())?;
     startup(config, app, state);
     welcome_window.close().map_err(|e| e.to_string())
 }
