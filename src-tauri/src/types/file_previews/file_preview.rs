@@ -1,12 +1,9 @@
-use anyhow::Result;
-use std::{fs, path::{Path, PathBuf}};
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::types::Id;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
 pub enum FileType {
     Note,
     TodoList,
@@ -21,6 +18,18 @@ impl ToString for FileType {
             Self::TodoList => "todo.csv".to_string(),
             Self::Image => "png".to_string(),
             Self::Table => "csv".to_string(),
+        }
+    }
+}
+
+impl FileType {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "md" => Some(Self::Note),
+            "todo.csv" => Some(Self::TodoList),
+            "png" => Some(Self::Image),
+            "csv" => Some(Self::Table),
+            _ => None,
         }
     }
 }
@@ -51,22 +60,22 @@ impl FilePreview {
         }
     }
 
-    pub fn from_fs(path: &Path, notes_dir: &Path) -> Result<Self> {
-        let id = Id::id_from_path(path, notes_dir);
-        let name = path.file_name().unwrap().to_str().unwrap().to_string();
-        let file_type = match id.get_type() {
-            Some(file_type) => file_type,
-            None => return Err(anyhow::anyhow!("Could not get file type")),
-        };
-        let created_at = fs::metadata(path)?.created()?;
-        let updated_at = fs::metadata(path)?.modified()?;
-
-        Ok(Self::new(
-            id,
-            name,
-            file_type,
-            created_at.into(),
-            updated_at.into(),
-        ))
-    }
+    // pub fn from_fs(path: &Path, notes_dir: &Path) -> Result<Self> {
+    //     let id = Id::id_from_path(path, notes_dir);
+    //     let name = path.file_name().unwrap().to_str().unwrap().to_string();
+    //     let file_type = match id.get_type() {
+    //         Some(file_type) => file_type,
+    //         None => return Err(anyhow::anyhow!("Could not get file type")),
+    //     };
+    //     let created_at = fs::metadata(path)?.created()?;
+    //     let updated_at = fs::metadata(path)?.modified()?;
+    //
+    //     Ok(Self::new(
+    //         id,
+    //         name,
+    //         file_type,
+    //         created_at.into(),
+    //         updated_at.into(),
+    //     ))
+    // }
 }

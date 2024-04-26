@@ -44,7 +44,7 @@ impl Note {
                                 if line.chars().nth(end + 1) == Some(']') {
                                     break; // Found the closing brackets for valid link
                                 }
-                                // Unbalanced closing bracket - ignore entire link
+                                eprintln!("Unbalanced closing bracket: {}", line);
                                 return;
                             }
                         }
@@ -55,12 +55,17 @@ impl Note {
                 }
 
                 if end >= line.len() {
-                    // Unclosed link - ignore entire link
+                    eprintln!("Unclosed link: {}", line);
                     return;
                 }
                 let link = &line[start + 2..end];
-                let id = Id::new(link, notes_dir);
-                links.push(id);
+                let path = PathBuf::from(notes_dir).join(link);
+                let id = match Id::new(&path, notes_dir) {
+                    Ok(id) => links.push(id),
+                    Err(err) => {
+                        eprintln!("Error getting id for link {}: {}", link, err);
+                    }
+                };
             });
         });
 

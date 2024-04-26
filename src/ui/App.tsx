@@ -10,6 +10,9 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import Workspace from "./Workspace";
+import handleKeyboardShortcuts from "@/lib/keyboardShortcuts";
+
+handleKeyboardShortcuts();
 
 function App() {
   const { setTheme } = useTheme();

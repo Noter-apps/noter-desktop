@@ -32,6 +32,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            refresh,
             create_file,
             delete_file,
             get_file,
@@ -39,7 +40,7 @@ fn main() {
             get_directory,
             welcome_startup,
             delete_entry,
-            refresh
+            get_graph
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

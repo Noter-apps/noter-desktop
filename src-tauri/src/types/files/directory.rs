@@ -2,7 +2,7 @@ use crate::types::{FilePreview, Id};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::{Path, PathBuf}};
+use std::{ fs, path::Path};
 
 use super::File;
 
@@ -18,25 +18,6 @@ impl Entry {
             Entry::File(file) => &file.id,
             Entry::Directory(dir) => &dir.id,
         }
-    }
-
-    pub fn delete_entry(entry_id: Id, notes_dir: &Path) -> Result<()> {
-        let entry_path = entry_id.path_from_id(notes_dir);
-        let entry_path = entry_path.as_path();
-
-        if !entry_path.exists() {
-            return Ok(());
-        }
-
-        if entry_path.is_dir() {
-            fs::remove_dir_all(entry_path)?;
-        }
-
-        if entry_path.is_file() {
-            fs::remove_file(entry_path)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -65,16 +46,14 @@ impl Directory {
             modified_at,
         }
     }
+}
 
-    pub fn read_notes_dir<F: FnMut(&File)>(notes_dir: &Path, mut f: F) -> Result<Self> {
+/* 
+     pub fn read_notes_dir<F: FnMut(&File)>(notes_dir: &Path, mut f: F) -> Result<Self> {
         Self::read_dir(notes_dir, notes_dir, &mut f)
     }
 
-    pub fn read_dir<F: FnMut(&File)>(
-        dir: &Path,
-        notes_dir: &Path,
-        f: &mut F,
-    ) -> Result<Self> {
+    pub fn read_dir<F: FnMut(&File)>(dir: &Path, notes_dir: &Path, f: &mut F) -> Result<Self> {
         let mut entries = Vec::new();
         let metadata = fs::metadata(notes_dir)?;
 
@@ -128,4 +107,76 @@ impl Directory {
 
         Ok(())
     }
+
+    fn add_entry(&mut self, entry: Entry, notes_dir: &Path) {
+        let entry_id = entry.get_id();
+        let entry_parent_path = entry_id.get_parent_directory(&notes_dir);
+        let dir_path = self.id.path_from_id(&notes_dir);
+
+        if dir_path == entry_parent_path {
+            self.entries.push(entry);
+            return;
+        }
+
+        for dir_entry in self.entries.iter_mut() {
+            if let Entry::Directory(dir) = dir_entry {
+                dir.add_entry(entry.clone(), notes_dir);
+            }
+        }
+    }
 }
+
+// create unit tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{FileContent, FileType};
+    use std::fs::File;
+
+    #[test]
+    fn test_directory_read_notes_dir() {
+        let dir = tempdir().unwrap();
+        let notes_dir = dir.path().join("notes");
+        fs::create_dir(&notes_dir).unwrap();
+
+        let note = notes_dir.join("note.md");
+        File::create(&note).unwrap();
+
+        let dir = Directory::read_notes_dir(&notes_dir).unwrap();
+        assert_eq!(dir.entries.len(), 1);
+    }
+
+    #[test]
+    fn test_directory_delete_entry() {
+        let dir = tempdir().unwrap();
+        let notes_dir = dir.path().join("notes");
+        fs::create_dir(&notes_dir).unwrap();
+
+        let note = notes_dir.join("note.md");
+        File::create(&note).unwrap();
+
+        let mut dir = Directory::read_notes_dir(&notes_dir).unwrap();
+        let note_id = Id::id_from_path(&note, &notes_dir);
+        dir.delete_entry(note_id.clone(), &notes_dir).unwrap();
+        assert_eq!(dir.entries.len(), 0);
+    }
+
+    #[test]
+    fn test_directory_add_entry() {
+        let dir = tempdir().unwrap();
+        let notes_dir = dir.path().join("notes");
+        fs::create_dir(&notes_dir).unwrap();
+
+        let mut dir = Directory::read_notes_dir(&notes_dir).unwrap();
+        let note = notes_dir.join("note.md");
+        File::create(&note).unwrap();
+        let note_id = Id::id_from_path(&note, &notes_dir);
+        let file = File::get_from_file(note_id.clone(), &notes_dir).unwrap();
+        let entry = Entry::File(file.get_preview());
+        dir.add_entry(entry, &notes_dir);
+
+        assert_eq!(dir.entries.len(), 1);
+    }
+}
+*/
+

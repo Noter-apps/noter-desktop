@@ -35,6 +35,15 @@ impl FileContent {
             FileType::Table => Self::Table(Box::default()),
         }
     }
+
+    pub fn get_type(&self) -> FileType {
+        match self {
+            Self::Note(_) => FileType::Note,
+            Self::TodoList(_) => FileType::TodoList,
+            Self::Image(_) => FileType::Image,
+            Self::Table(_) => FileType::Table,
+        }
+    }
 }
 
 impl FileContent {
@@ -67,19 +76,20 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(id: Id, notes_dir: &Path, name: String, content: FileContent) -> Result<Self> {
-        let now = Utc::now();
-
-        let new_file = Self {
+    pub fn new(
+        id: Id,
+        content: FileContent,
+        created_at: DateTime<Utc>,
+        modified_at: DateTime<Utc>,
+    ) -> Self {
+        let name = id.get_name();
+        Self {
             id,
             name,
-            created_at: now,
-            modified_at: now,
+            created_at,
+            modified_at,
             content,
-        };
-
-        new_file.save_to_file(notes_dir)?;
-        Ok(new_file)
+        }
     }
 
     pub fn get_preview(&self) -> FilePreview {
@@ -88,99 +98,124 @@ impl File {
             name: self.name.clone(),
             created_at: self.created_at,
             modified_at: self.modified_at,
-            file_type: self.get_type(),
+            file_type: self.content.get_type(),
         }
     }
 
-    pub fn get_from_file(id: Id, notes_dir: &Path) -> Result<Self> {
-        let path = id.path_from_id(notes_dir);
-
-        if !path.exists() {
-            return Err(anyhow::anyhow!("File does not exist"));
-        }
-
-        if !path.is_file() {
-            return Err(anyhow::anyhow!("Not a File"));
-        }
-
-        let metadata = fs::metadata(&path)?;
-
-        let created_at = metadata.created()?;
-        let modified_at = metadata.modified()?;
-
-        let name = match path.file_stem() {
-            Some(name) => name.to_string_lossy().to_string(),
-            None => return Err(anyhow::anyhow!("Could not get file name")),
-        };
-        let extension = match path.extension() {
-            Some(extension) => extension.to_string_lossy().to_string(),
-            None => return Err(anyhow::anyhow!("Could not get file extension")),
-        };
-
-        let content = fs::read(&path)?;
-
-        let file_type = match extension.as_str() {
-            "md" => FileType::Note,
-            "csv" if name.contains(".todo") => FileType::TodoList,
-            "csv" => FileType::Table,
-            _ if IMAGE_EXTENSIONS.contains(&extension.as_str()) => FileType::Image,
-            _ => return Err(anyhow::anyhow!("Unknown file extension")),
-        };
-
-        let content = FileContent::custom_deserialize(&content, file_type)?;
-
-        Ok(Self {
-            id,
-            name,
-            created_at: created_at.into(),
-            modified_at: modified_at.into(),
-            content,
-        })
-    }
-
-    pub fn delete(id: Id, notes_dir: &Path) -> Result<()> {
-        fs::remove_file(id.path_from_id(notes_dir))?;
-
-        Ok(())
-    }
-
-    pub fn save_to_file(&self, notes_dir: &Path) -> Result<()> {
-        let path = self.id.path_from_id(notes_dir);
-
-        fs::write(path, self.content.custom_serialize()?)?;
-
-        Ok(())
-    }
-
-    pub fn put(&mut self, content: FileContent, notes_dir: &Path) -> Result<()> {
-        self.content = content;
-        self.modified_at = Utc::now();
-
-        self.save_to_file(notes_dir)
-    }
-
-    pub fn rename(&mut self, mut new_name: String, notes_dir: &Path) -> Result<()> {
-        let old_path = self.id.path_from_id(notes_dir);
-        new_name.push('.');
-        new_name.push_str(&self.get_type().to_string());
-        let new_id = Id::new(new_name.clone(), notes_dir);
-
-        let new_path = new_id.path_from_id(notes_dir);
-
-        fs::rename(old_path, new_path)?;
-
-        self.id = new_id;
-        self.name = new_name;
-
-        Ok(())
-    }
-
-    pub fn get_type(&self) -> FileType {
-        match &self.content {
-            FileContent::Note(_) => FileType::Note,
-            FileContent::TodoList(_) => FileType::TodoList,
-            FileContent::Image(_) => FileType::Image,
-            FileContent::Table(_) => FileType::Table,
-        }
-    }
+    // pub fn new(id: Id, notes_dir: &Path, name: String, content: FileContent) -> Result<Self> {
+    //     let now = Utc::now();
+    //
+    //     let new_file = Self {
+    //         id,
+    //         name,
+    //         created_at: now,
+    //         modified_at: now,
+    //         content,
+    //     };
+    //
+    //     new_file.save_to_file(notes_dir)?;
+    //     Ok(new_file)
+    // }
+    //
+    // pub fn get_preview(&self) -> FilePreview {
+    //     FilePreview {
+    //         id: self.id.clone(),
+    //         name: self.name.clone(),
+    //         created_at: self.created_at,
+    //         modified_at: self.modified_at,
+    //         file_type: self.get_type(),
+    //     }
+    // }
+    //
+    // pub fn get_from_file(id: Id, notes_dir: &Path) -> Result<Self> {
+    //     let path = id.path_from_id(notes_dir);
+    //
+    //     if !path.exists() {
+    //         return Err(anyhow::anyhow!("File does not exist"));
+    //     }
+    //
+    //     if !path.is_file() {
+    //         return Err(anyhow::anyhow!("Not a File"));
+    //     }
+    //
+    //     let metadata = fs::metadata(&path)?;
+    //
+    //     let created_at = metadata.created()?;
+    //     let modified_at = metadata.modified()?;
+    //
+    //     let name = match path.file_stem() {
+    //         Some(name) => name.to_string_lossy().to_string(),
+    //         None => return Err(anyhow::anyhow!("Could not get file name")),
+    //     };
+    //     let extension = match path.extension() {
+    //         Some(extension) => extension.to_string_lossy().to_string(),
+    //         None => return Err(anyhow::anyhow!("Could not get file extension")),
+    //     };
+    //
+    //     let content = fs::read(&path)?;
+    //
+    //     let file_type = match extension.as_str() {
+    //         "md" => FileType::Note,
+    //         "csv" if name.contains(".todo") => FileType::TodoList,
+    //         "csv" => FileType::Table,
+    //         _ if IMAGE_EXTENSIONS.contains(&extension.as_str()) => FileType::Image,
+    //         _ => return Err(anyhow::anyhow!("Unknown file extension")),
+    //     };
+    //
+    //     let content = FileContent::custom_deserialize(&content, file_type)?;
+    //
+    //     Ok(Self {
+    //         id,
+    //         name,
+    //         created_at: created_at.into(),
+    //         modified_at: modified_at.into(),
+    //         content,
+    //     })
+    // }
+    //
+    // pub fn delete(id: Id, notes_dir: &Path) -> Result<()> {
+    //     fs::remove_file(id.path_from_id(notes_dir))?;
+    //
+    //     Ok(())
+    // }
+    //
+    // pub fn save_to_file(&self, notes_dir: &Path) -> Result<()> {
+    //     let path = self.id.path_from_id(notes_dir);
+    //
+    //     fs::write(path, self.content.custom_serialize()?)?;
+    //
+    //     Ok(())
+    // }
+    //
+    // pub fn put(&mut self, content: FileContent, notes_dir: &Path) -> Result<()> {
+    //     self.content = content;
+    //     self.modified_at = Utc::now();
+    //
+    //     self.save_to_file(notes_dir)
+    // }
+    //
+    // pub fn rename(&mut self, mut new_name: String, notes_dir: &Path) -> Result<()> {
+    //     let old_path = self.id.path_from_id(notes_dir);
+    //     new_name.push('.');
+    //     new_name.push_str(&self.get_type().to_string());
+    //     let new_id = Id::new(new_name.clone(), notes_dir);
+    //
+    //     let new_path = new_id.path_from_id(notes_dir);
+    //
+    //     fs::rename(old_path, new_path)?;
+    //
+    //     self.id = new_id;
+    //     self.name = new_name;
+    //
+    //     Ok(())
+    // }
+    //
+    // pub fn get_type(&self) -> FileType {
+    //     match &self.content {
+    //         FileContent::Note(_) => FileType::Note,
+    //         FileContent::TodoList(_) => FileType::TodoList,
+    //         FileContent::Image(_) => FileType::Image,
+    //         FileContent::Table(_) => FileType::Table,
+    //     }
+    // }
 }

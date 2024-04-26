@@ -1,64 +1,77 @@
-use crate::types::{Directory, File, FileContent, FileGraph, FilePreview, FileType, Id};
-use anyhow::Result;
-use std::{collections::HashMap, path::PathBuf, sync::Mutex};
+use crate::types::{
+    DataAdapter, Directory, Entry, File, FileContent, FileManager, FilePreview, Id, SortOptions,
+};
+use anyhow::{anyhow, Result};
+use chrono::Utc;
+use std::{path::PathBuf, sync::Mutex};
 
 pub struct NoterState {
-    notes_dir: PathBuf,
-    files: Vec<FilePreview>,
-    dir: Directory,
-    graph: FileGraph,
+    file_manager: FileManager,
+    data_adapter: DataAdapter,
 }
 
 impl NoterState {
     pub fn new(notes_dir: PathBuf) -> Result<Self> {
-        let mut files = Vec::new();
-        let mut graph: HashMap<Id, (bool, Vec<Id>)> = HashMap::new();
-
-        let dir = Directory::read_notes_dir(&notes_dir, |file| {
-            if let Some(FileType::Note) = file.id.get_type() {
-                let file = File::get_from_file(file.id.clone(), &notes_dir).unwrap();
-                files.push(file.get_preview());
-
-                if let FileContent::Note(note) = file.content {
-                    let mut links = note.find_links(&notes_dir);
-                    links.iter().for_each(|link| {
-                        match graph.get_mut(link) {
-                            Some((_, idk)) => {
-                                idk.push(file.id.clone());
-                            }
-                            None => {
-                                graph.insert(link.clone(), (false, vec![file.id.clone()]));
-                            }
-                        };
-                    });
-
-                    if let Some((_, arr)) = graph.get_mut(&file.id) {
-                        links.append(arr);
-                    }
-
-                    graph.insert(file.id.clone(), (true, links));
-                }
-            }
-        })?;
+        let file_manager = FileManager::new(notes_dir.clone());
+        let data_adapter = DataAdapter::new();
 
         Ok(Self {
-            notes_dir,
-            files,
-            dir,
-            graph: FileGraph { nodes: graph },
+            file_manager,
+            data_adapter,
         })
     }
 
     pub fn get_notes_dir(&self) -> &PathBuf {
-        &self.notes_dir
+        self.file_manager.get_notes_dir()
     }
 
-    pub fn get_files(&self) -> &Vec<FilePreview> {
-        &self.files
+    pub fn get_all_files(&self, sort: Option<SortOptions>) -> Vec<FilePreview> {
+        self.data_adapter.get_all_files(sort)
     }
 
-    pub fn get_directory(&self) -> &Directory {
-        &self.dir
+    pub fn read_notes_dir(&self) -> Result<Directory> {
+        self.file_manager.read_notes_dir()
+    }
+
+    pub fn create_file(&mut self, file: &File) -> Result<()> {
+        self.file_manager.save(file)?;
+        self.data_adapter.insert_file(file.get_preview());
+        Ok(())
+    }
+
+    pub fn delete_file(&mut self, id: &Id) -> Result<()> {
+        self.file_manager.delete(&id)?;
+        self.data_adapter.delete_file(&id);
+        Ok(())
+    }
+
+    pub fn get_directory(&self) -> Result<Directory> {
+        self.file_manager.read_notes_dir()
+    }
+
+    pub fn get_file(&self, id: &Id) -> Result<File> {
+        self.file_manager.read(id)
+    }
+
+    pub fn get_file_manager(&self) -> &FileManager {
+        &self.file_manager
+    }
+
+    pub fn update_file(&mut self, id: &Id, content: FileContent) -> Result<File> {
+        let file_preview = self
+            .data_adapter
+            .get_file(id)
+            .ok_or_else(|| anyhow!("File not found"))?;
+
+        match file_preview {
+            Entry::File(file) => {
+                let new_file = File::new(file.id.clone(), content, file.created_at, Utc::now());
+                self.file_manager.save(&new_file)?;
+                self.data_adapter.insert_file(new_file.get_preview());
+                Ok(new_file)
+            }
+            _ => return Err(anyhow!("Not a file")),
+        }
     }
 }
 

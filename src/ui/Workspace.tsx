@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import getFile from "@/types/commands/getFile";
 import NoteView from "./Note";
 import { FilePreview } from "@/types/filePreview/filePreview";
+import GraphView from "./GraphView";
 
 function TabRow() {
   const [selected, removeSelected, open, setOpen] = useNoterState((state) => [
@@ -97,9 +98,7 @@ export default function Workspace() {
         {open ? (
           <FileView key={open.id} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            Select a file to view
-          </div>
+          <div className="w-full h-full flex items-center justify-center"></div>
         )}
       </div>
     </div>

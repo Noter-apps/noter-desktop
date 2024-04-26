@@ -5,6 +5,7 @@ use tauri::{command, AppHandle, Manager};
 
 #[command]
 pub fn welcome_startup(notes_dir: PathBuf, app: AppHandle) -> Result<(), String> {
+
     let welcome_window = match app.get_window("welcome") {
         Some(w) => w,
         None => return Err("welcome window not found".to_string()),

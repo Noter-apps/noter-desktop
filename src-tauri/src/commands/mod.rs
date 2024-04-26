@@ -5,8 +5,10 @@ mod get_directory;
 mod get_file;
 mod put_file;
 mod refresh;
+mod get_graph;
 mod welcome_startup;
 
+pub use get_graph::*;
 pub use create_file::*;
 pub use delete_entry::*;
 pub use delete_file::*;

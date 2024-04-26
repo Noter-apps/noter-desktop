@@ -19,30 +19,30 @@ pub fn put_file(
     name: Option<String>,
     content: Option<String>,
 ) -> Result<File, String> {
-    let state = match state.lock() {
+    let mut state = match state.lock() {
         Ok(state) => state,
         Err(_) => return Err("Could not lock state".to_string()),
     };
 
-    let notes_dir = state.get_notes_dir();
-    let id = Id::new(id, notes_dir);
+    let file_manager = state.get_file_manager();
+    let mut id = Id::from_string(id);
 
-    match id.exists(notes_dir) {
+    match file_manager.exists(&id) {
         true => {
-            let mut file = File::get_from_file(id, notes_dir).map_err(|e| e.to_string())?;
-            let file_type = file.get_type();
-
             if let Some(name) = name {
-                file.rename(name, notes_dir).map_err(|e| e.to_string())?;
+                id = file_manager.rename(&id, &name).map_err(|e| e.to_string())?;
             }
+
+            let mut file = file_manager.read(&id).map_err(|e| e.to_string())?;
 
             if let Some(content) = content {
-                let file_content = FileContent::custom_deserialize(content.as_bytes(), file_type)
-                    .map_err(|e| e.to_string())?;
-                file.put(file_content, notes_dir)
+                let file_content =
+                    FileContent::custom_deserialize(&content.as_bytes(), file.content.get_type())
+                        .map_err(|e| e.to_string())?;
+                file = state
+                    .update_file(&id, file_content)
                     .map_err(|e| e.to_string())?;
             }
-
             Ok(file)
         }
         false => Err("File does not exist".to_string()),
